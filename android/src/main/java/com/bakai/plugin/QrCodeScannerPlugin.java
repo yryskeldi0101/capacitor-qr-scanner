@@ -5,9 +5,12 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.provider.Settings;
+import android.view.View;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+
 import androidx.camera.view.PreviewView;
+
 import com.getcapacitor.*;
 import com.getcapacitor.annotation.*;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
@@ -16,80 +19,142 @@ import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
 import com.google.mlkit.vision.common.InputImage;
+
 import java.util.ArrayList;
 import java.util.List;
 
-@CapacitorPlugin(name = "QrCodeScanner", permissions = { @Permission(strings = Manifest.permission.CAMERA, alias = "camera") })
+@CapacitorPlugin(
+        name = "QrCodeScanner",
+        permissions = { @Permission(strings = Manifest.permission.CAMERA, alias = "camera") }
+)
 public class QrCodeScannerPlugin extends Plugin {
 
     private QrCodeScanner scanner;
     private PreviewView previewView;
     private FrameLayout cameraContainer;
+    private QRScanLineOverlayView scanOverlay;
 
     @Override
     public void load() {
         super.load();
+
         if (getBridge() != null && getBridge().getWebView() != null) {
+            // делаем WebView прозрачным
             getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         }
     }
 
     @PluginMethod
     public void startScan(PluginCall call) {
-        String lensFacing = call.getObject("options") != null ? call.getObject("options").getString("lensFacing", "BACK") : "BACK";
+        String lensFacing = call.getObject("options") != null
+                ? call.getObject("options").getString("lensFacing", "BACK")
+                : "BACK";
 
-        int resolution = call.getObject("options") != null ? call.getObject("options").getInteger("resolution", 1) : 1;
+        int resolution = call.getObject("options") != null
+                ? call.getObject("options").getInteger("resolution", 1)
+                : 1;
 
         getActivity().runOnUiThread(() -> {
             try {
-                FrameLayout root = (FrameLayout) getActivity().getWindow().getDecorView().findViewById(android.R.id.content);
+                FrameLayout root = (FrameLayout) getActivity()
+                        .getWindow()
+                        .getDecorView()
+                        .findViewById(android.R.id.content);
 
+                // если уже было — очистим
+                if (scanner != null) {
+                    scanner.stop();
+                    scanner = null;
+                }
+                if (cameraContainer != null) {
+                    if (scanOverlay != null) {
+                        scanOverlay.stop();
+                        scanOverlay = null;
+                    }
+                    cameraContainer.removeAllViews();
+                    ViewParent parent = cameraContainer.getParent();
+                    if (parent instanceof FrameLayout) {
+                        ((FrameLayout) parent).removeView(cameraContainer);
+                    }
+                    cameraContainer = null;
+                }
+
+                // 1) Контейнер камеры (прозрачный, под UI)
                 cameraContainer = new FrameLayout(getContext());
-                cameraContainer.setLayoutParams(
-                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-                );
+                cameraContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                ));
+                cameraContainer.setBackgroundColor(Color.TRANSPARENT);
+                cameraContainer.setClickable(false);
+                cameraContainer.setFocusable(false);
 
+                // 2) PreviewView
                 previewView = new PreviewView(getContext());
-                previewView.setLayoutParams(
-                    new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
-                );
+                previewView.setLayoutParams(new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                ));
                 previewView.setImplementationMode(PreviewView.ImplementationMode.COMPATIBLE);
                 previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
+                previewView.setClickable(false);
+                previewView.setFocusable(false);
 
                 cameraContainer.addView(previewView);
 
-                // под WebView
+                // 3) Overlay поверх камеры (внутри cameraContainer)
+                scanOverlay = new QRScanLineOverlayView(getContext());
+                scanOverlay.setLayoutParams(new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                ));
+                scanOverlay.setClickable(false);
+                scanOverlay.setFocusable(false);
+
+                cameraContainer.addView(scanOverlay);
+
+                // ✅ САМОЕ ВАЖНОЕ: добавляем камеру в самый низ, чтобы UI был сверху
                 root.addView(cameraContainer, 0);
 
+                // ✅ WebView должен быть прозрачным, чтобы камера была видна под UI
+                if (getBridge() != null && getBridge().getWebView() != null) {
+                    getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
+                    getBridge().getWebView().bringToFront(); // UI сверху камеры
+                }
+
+                // старт анимации
+                scanOverlay.start();
+
+                // 4) старт камеры
                 scanner = new QrCodeScanner(getContext());
                 scanner.start(
-                    getActivity(),
-                    previewView,
-                    lensFacing,
-                    resolution,
-                    new QrCodeScanner.Callback() {
-                        @Override
-                        public void onBarcodes(List<Barcode> barcodes) {
-                            if (barcodes == null || barcodes.isEmpty()) return;
-                            notifyListeners("barcodesScanned", BarcodeMapper.toJS(barcodes));
-                        }
+                        getActivity(),
+                        previewView,
+                        lensFacing,
+                        resolution,
+                        new QrCodeScanner.Callback() {
+                            @Override
+                            public void onBarcodes(List<Barcode> barcodes) {
+                                if (barcodes == null || barcodes.isEmpty()) return;
+                                notifyListeners("barcodesScanned", BarcodeMapper.toJS(barcodes));
+                            }
 
-                        @Override
-                        public void onError(String message) {
-                            JSObject err = new JSObject();
-                            err.put("message", message);
-                            notifyListeners("scanError", err);
-                        }
+                            @Override
+                            public void onError(String message) {
+                                JSObject err = new JSObject();
+                                err.put("message", message);
+                                notifyListeners("scanError", err);
+                            }
 
-                        @Override
-                        public void onZoomReady(float minRatio, float maxRatio, float currentRatio) {
-                            JSObject data = new JSObject();
-                            data.put("zoomRatio", currentRatio); // текущее значение
-                            data.put("zoomRatio", minRatio); // диапазон
-                            data.put("zoomRatio", maxRatio);
-                            notifyListeners("zoomReady", data);
+                            @Override
+                            public void onZoomReady(float minRatio, float maxRatio, float currentRatio) {
+                                JSObject data = new JSObject();
+                                data.put("currentZoomRatio", currentRatio);
+                                data.put("minZoomRatio", minRatio);
+                                data.put("maxZoomRatio", maxRatio);
+                                notifyListeners("zoomReady", data);
+                            }
                         }
-                    }
                 );
 
                 call.resolve();
@@ -99,6 +164,7 @@ public class QrCodeScannerPlugin extends Plugin {
         });
     }
 
+
     @PluginMethod
     public void stopScan(PluginCall call) {
         getActivity().runOnUiThread(() -> {
@@ -106,6 +172,11 @@ public class QrCodeScannerPlugin extends Plugin {
                 if (scanner != null) {
                     scanner.stop();
                     scanner = null;
+                }
+
+                if (scanOverlay != null) {
+                    scanOverlay.stop();
+                    scanOverlay = null;
                 }
 
                 if (cameraContainer != null) {
@@ -123,6 +194,24 @@ public class QrCodeScannerPlugin extends Plugin {
                 call.reject(e.getMessage());
             }
         });
+    }
+
+    private void cleanupViews() {
+        if (scanOverlay != null) {
+            scanOverlay.stop();
+            scanOverlay = null;
+        }
+
+        if (cameraContainer != null) {
+            cameraContainer.removeAllViews();
+            ViewParent parent = cameraContainer.getParent();
+            if (parent instanceof FrameLayout) {
+                ((FrameLayout) parent).removeView(cameraContainer);
+            }
+            cameraContainer = null;
+        }
+
+        previewView = null;
     }
 
     @PluginMethod
@@ -144,10 +233,9 @@ public class QrCodeScannerPlugin extends Plugin {
             InputImage image = InputImage.fromFilePath(getContext(), Uri.parse(path));
             BarcodeScanner sc = BarcodeScanning.getClient();
 
-            sc
-                .process(image)
-                .addOnSuccessListener((barcodes) -> call.resolve(BarcodeMapper.toJS(barcodes)))
-                .addOnFailureListener((e) -> call.reject(e.getMessage()));
+            sc.process(image)
+                    .addOnSuccessListener(barcodes -> call.resolve(BarcodeMapper.toJS(barcodes)))
+                    .addOnFailureListener(e -> call.reject(e.getMessage()));
         } catch (Exception e) {
             call.reject(e.getMessage());
         }
@@ -157,14 +245,13 @@ public class QrCodeScannerPlugin extends Plugin {
     public void scan(PluginCall call) {
         GmsBarcodeScanner gms = GmsBarcodeScanning.getClient(getContext());
 
-        gms
-            .startScan()
-            .addOnSuccessListener((barcode) -> {
-                List<Barcode> list = new ArrayList<>();
-                list.add(barcode);
-                call.resolve(BarcodeMapper.toJS(list));
-            })
-            .addOnFailureListener((e) -> call.reject(e.getMessage()));
+        gms.startScan()
+                .addOnSuccessListener(barcode -> {
+                    List<Barcode> list = new ArrayList<>();
+                    list.add(barcode);
+                    call.resolve(BarcodeMapper.toJS(list));
+                })
+                .addOnFailureListener(e -> call.reject(e.getMessage()));
     }
 
     // ===== Permissions =====
@@ -188,7 +275,10 @@ public class QrCodeScannerPlugin extends Plugin {
 
     @PluginMethod
     public void openSettings(PluginCall call) {
-        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getContext().getPackageName()));
+        Intent intent = new Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:" + getContext().getPackageName())
+        );
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(intent);
         call.resolve();
@@ -255,7 +345,7 @@ public class QrCodeScannerPlugin extends Plugin {
             scanner.setZoomRatio(ratio);
 
             JSObject ret = new JSObject();
-            ret.put("zoomRatio", scanner.getZoomRatio()); // единый ключ
+            ret.put("zoomRatio", scanner.getZoomRatio());
             call.resolve(ret);
         });
     }
