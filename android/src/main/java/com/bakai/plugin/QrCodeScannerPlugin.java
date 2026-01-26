@@ -1,13 +1,15 @@
+// ===================== QrCodeScannerPlugin.java =====================
 package com.bakai.plugin;
 
 import android.Manifest;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
 import android.provider.Settings;
-import android.view.View;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import androidx.camera.view.PreviewView;
 
@@ -33,13 +35,12 @@ public class QrCodeScannerPlugin extends Plugin {
     private PreviewView previewView;
     private FrameLayout cameraContainer;
     private QRScanLineOverlayView scanOverlay;
-
+    // ✅ слой “заморозки”
+    private ImageView freezeView;
     @Override
     public void load() {
         super.load();
-
         if (getBridge() != null && getBridge().getWebView() != null) {
-            // делаем WebView прозрачным
             getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
         }
     }
@@ -61,7 +62,7 @@ public class QrCodeScannerPlugin extends Plugin {
                         .getDecorView()
                         .findViewById(android.R.id.content);
 
-                // если уже было — очистим
+                // cleanup
                 if (scanner != null) {
                     scanner.stop();
                     scanner = null;
@@ -71,6 +72,10 @@ public class QrCodeScannerPlugin extends Plugin {
                         scanOverlay.stop();
                         scanOverlay = null;
                     }
+                    if (freezeView != null) {
+                        cameraContainer.removeView(freezeView);
+                        freezeView = null;
+                    }
                     cameraContainer.removeAllViews();
                     ViewParent parent = cameraContainer.getParent();
                     if (parent instanceof FrameLayout) {
@@ -79,7 +84,6 @@ public class QrCodeScannerPlugin extends Plugin {
                     cameraContainer = null;
                 }
 
-                // 1) Контейнер камеры (прозрачный, под UI)
                 cameraContainer = new FrameLayout(getContext());
                 cameraContainer.setLayoutParams(new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
@@ -89,7 +93,6 @@ public class QrCodeScannerPlugin extends Plugin {
                 cameraContainer.setClickable(false);
                 cameraContainer.setFocusable(false);
 
-                // 2) PreviewView
                 previewView = new PreviewView(getContext());
                 previewView.setLayoutParams(new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
@@ -99,10 +102,9 @@ public class QrCodeScannerPlugin extends Plugin {
                 previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
                 previewView.setClickable(false);
                 previewView.setFocusable(false);
-
                 cameraContainer.addView(previewView);
 
-                // 3) Overlay поверх камеры (внутри cameraContainer)
+                // overlay scanline
                 scanOverlay = new QRScanLineOverlayView(getContext());
                 scanOverlay.setLayoutParams(new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
@@ -110,22 +112,18 @@ public class QrCodeScannerPlugin extends Plugin {
                 ));
                 scanOverlay.setClickable(false);
                 scanOverlay.setFocusable(false);
-
                 cameraContainer.addView(scanOverlay);
 
-                // ✅ САМОЕ ВАЖНОЕ: добавляем камеру в самый низ, чтобы UI был сверху
+                // камера вниз, UI вверх
                 root.addView(cameraContainer, 0);
 
-                // ✅ WebView должен быть прозрачным, чтобы камера была видна под UI
                 if (getBridge() != null && getBridge().getWebView() != null) {
                     getBridge().getWebView().setBackgroundColor(Color.TRANSPARENT);
-                    getBridge().getWebView().bringToFront(); // UI сверху камеры
+                    getBridge().getWebView().bringToFront();
                 }
 
-                // старт анимации
                 scanOverlay.start();
 
-                // 4) старт камеры
                 scanner = new QrCodeScanner(getContext());
                 scanner.start(
                         getActivity(),
@@ -164,7 +162,6 @@ public class QrCodeScannerPlugin extends Plugin {
         });
     }
 
-
     @PluginMethod
     public void stopScan(PluginCall call) {
         getActivity().runOnUiThread(() -> {
@@ -180,6 +177,11 @@ public class QrCodeScannerPlugin extends Plugin {
                 }
 
                 if (cameraContainer != null) {
+                    if (freezeView != null) {
+                        cameraContainer.removeView(freezeView);
+                        freezeView = null;
+                    }
+
                     cameraContainer.removeAllViews();
                     ViewParent parent = cameraContainer.getParent();
                     if (parent instanceof FrameLayout) {
@@ -196,36 +198,72 @@ public class QrCodeScannerPlugin extends Plugin {
         });
     }
 
-    private void cleanupViews() {
-        if (scanOverlay != null) {
-            scanOverlay.stop();
-            scanOverlay = null;
-        }
 
-        if (cameraContainer != null) {
-            cameraContainer.removeAllViews();
-            ViewParent parent = cameraContainer.getParent();
-            if (parent instanceof FrameLayout) {
-                ((FrameLayout) parent).removeView(cameraContainer);
-            }
-            cameraContainer = null;
-        }
-
-        previewView = null;
-    }
-
+    // ✅ PAUSE: незаметно (камера продолжает работать), но “как будто на паузе”
     @PluginMethod
     public void pauseScan(PluginCall call) {
-        if (scanner != null) scanner.pause();
-        call.resolve();
+        getActivity().runOnUiThread(() -> {
+            try {
+                // 1) выключаем сканирование (анализ)
+                if (scanner != null) scanner.pause();
+
+                // 2) замораживаем картинку поверх preview
+                if (cameraContainer != null && previewView != null) {
+                    Bitmap bmp = previewView.getBitmap(); // быстрый снимок
+                    if (bmp != null) {
+                        if (freezeView == null) {
+                            freezeView = new ImageView(getContext());
+                            freezeView.setLayoutParams(new FrameLayout.LayoutParams(
+                                    FrameLayout.LayoutParams.MATCH_PARENT,
+                                    FrameLayout.LayoutParams.MATCH_PARENT
+                            ));
+                            freezeView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                            freezeView.setClickable(false);
+                            freezeView.setFocusable(false);
+                            // добавим поверх preview, но под scanOverlay (можно и поверх — как хочешь)
+                            cameraContainer.addView(freezeView, cameraContainer.getChildCount() - 1);
+                        }
+                        freezeView.setImageBitmap(bmp);
+                        freezeView.setVisibility(ImageView.VISIBLE);
+                    }
+                }
+
+                // 3) пауза scanline
+                if (scanOverlay != null) scanOverlay.pause();
+
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
     }
 
+    // ✅ RESUME: мгновенно, без “выкл/вкл”
     @PluginMethod
     public void resumeScan(PluginCall call) {
-        if (scanner != null) scanner.resume();
-        call.resolve();
+        getActivity().runOnUiThread(() -> {
+            try {
+                // 1) убираем freeze слой
+                if (freezeView != null) {
+                    freezeView.setImageDrawable(null);
+                    freezeView.setVisibility(ImageView.GONE);
+                }
+
+                // 2) продолжаем scanline
+                if (scanOverlay != null) scanOverlay.resume();
+
+                // 3) включаем анализ обратно
+                if (scanner != null) scanner.resume();
+
+                call.resolve();
+            } catch (Exception e) {
+                call.reject(e.getMessage());
+            }
+        });
     }
 
+
+    // ===== readBarcodesFromImage / scan оставь как было =====
     @PluginMethod
     public void readBarcodesFromImage(PluginCall call) {
         String path = call.getString("path");
@@ -253,6 +291,7 @@ public class QrCodeScannerPlugin extends Plugin {
                 })
                 .addOnFailureListener(e -> call.reject(e.getMessage()));
     }
+
 
     // ===== Permissions =====
 

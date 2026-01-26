@@ -1,3 +1,4 @@
+// ===================== QRScanLineOverlayView.java =====================
 package com.bakai.plugin;
 
 import android.animation.ValueAnimator;
@@ -15,6 +16,8 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import androidx.annotation.Nullable;
 
 public final class QRScanLineOverlayView extends View {
+    private ValueAnimator animator;
+    private boolean isPaused = false;
 
     private float lineWidthFactor = 0.90f;
     private float bottomFactor = 0.73f;
@@ -25,21 +28,18 @@ public final class QRScanLineOverlayView extends View {
 
     private long durationMs = 2000;
 
-    // base paint (градиент линии)
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-    // glow paints (аура как на iOS)
     private final Paint glowPaint1 = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint glowPaint2 = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private ValueAnimator animator;
     private float currentY;
 
     private float leftX, rightX;
     private float yTop, yBottom;
 
-    // ✅ iOS systemBlue = #007AFF
     private static final int IOS_SYSTEM_BLUE = 0xFF007AFF;
+
+    private float pausedY = Float.NaN;
 
     public QRScanLineOverlayView(Context context) {
         super(context);
@@ -58,17 +58,14 @@ public final class QRScanLineOverlayView extends View {
 
         float d = getResources().getDisplayMetrics().density;
 
-        // толщина линии (3dp)
         lineHeightPx = 2f * d;
 
         linePaint.setStyle(Paint.Style.FILL);
         glowPaint1.setStyle(Paint.Style.FILL);
         glowPaint2.setStyle(Paint.Style.FILL);
 
-        // BlurMaskFilter требует software layer
         setLayerType(LAYER_TYPE_SOFTWARE, null);
 
-        // ✅ shadow чуть меньше
         glowPaint1.setMaskFilter(new BlurMaskFilter(2f * d, BlurMaskFilter.Blur.NORMAL));
         glowPaint2.setMaskFilter(new BlurMaskFilter(4f * d, BlurMaskFilter.Blur.NORMAL));
     }
@@ -92,7 +89,6 @@ public final class QRScanLineOverlayView extends View {
         yTop = (sb * statusBarFactor) + (extraTopDp * d);
         yBottom = h * bottomFactor;
 
-        // градиент: прозрачный -> iOS systemBlue -> прозрачный
         LinearGradient g = new LinearGradient(
                 leftX, 0, rightX, 0,
                 new int[]{0x00000000, IOS_SYSTEM_BLUE, 0x00000000},
@@ -101,7 +97,6 @@ public final class QRScanLineOverlayView extends View {
         );
         linePaint.setShader(g);
 
-        // glow градиенты (мягче)
         LinearGradient gGlow1 = new LinearGradient(
                 leftX, 0, rightX, 0,
                 new int[]{0x00000000, 0xCC007AFF, 0x00000000},
@@ -118,7 +113,14 @@ public final class QRScanLineOverlayView extends View {
         );
         glowPaint2.setShader(gGlow2);
 
-        restartAnimator();
+        if (isPaused) {
+            if (Float.isNaN(pausedY)) pausedY = yTop;
+            currentY = clamp(pausedY, yTop, yBottom);
+            postInvalidateOnAnimation();
+            return;
+        }
+
+        restartAnimatorFrom(Float.NaN);
     }
 
     @Override
@@ -129,11 +131,9 @@ public final class QRScanLineOverlayView extends View {
         float top = currentY - half;
         float bottom = currentY + half;
 
-        // ✅ glow: чуть меньше расползание
         float glowExtra1 = lineHeightPx * 1.2f;
         float glowExtra2 = lineHeightPx * 2.2f;
 
-        // roundRect “капсула”
         float r = 999f;
 
         canvas.drawRoundRect(
@@ -150,18 +150,19 @@ public final class QRScanLineOverlayView extends View {
         );
     }
 
-    private void restartAnimator() {
-        stop();
+    private void restartAnimatorFrom(float startY) {
+        stopInternal(false);
 
         if (getWidth() == 0 || getHeight() == 0) return;
         if (yBottom <= yTop + 20) return;
 
-        currentY = yTop;
+        float begin = Float.isNaN(startY) ? yTop : clamp(startY, yTop, yBottom);
+        currentY = begin;
+        postInvalidateOnAnimation();
 
-        animator = ValueAnimator.ofFloat(yTop, yBottom);
+        animator = ValueAnimator.ofFloat(begin, yBottom);
         animator.setDuration(durationMs);
 
-        // iOS-like easeInOut
         if (Build.VERSION.SDK_INT >= 21) {
             animator.setInterpolator(new android.view.animation.PathInterpolator(0.42f, 0f, 0.58f, 1f));
         } else {
@@ -172,6 +173,7 @@ public final class QRScanLineOverlayView extends View {
         animator.setRepeatMode(ValueAnimator.REVERSE);
 
         animator.addUpdateListener(a -> {
+            if (isPaused) return;
             currentY = (float) a.getAnimatedValue();
             postInvalidateOnAnimation();
         });
@@ -180,17 +182,62 @@ public final class QRScanLineOverlayView extends View {
     }
 
     public void start() {
+        isPaused = false;
+        pausedY = Float.NaN;
         post(() -> {
-            if (getWidth() > 0 && getHeight() > 0) restartAnimator();
+            if (getWidth() > 0 && getHeight() > 0) restartAnimatorFrom(Float.NaN);
             else post(this::start);
         });
     }
 
+    public void pause() {
+        isPaused = true;
+        pausedY = currentY;
+
+        if (animator != null) {
+            if (Build.VERSION.SDK_INT >= 19) {
+                animator.pause();
+            } else {
+                animator.cancel();
+            }
+        }
+        postInvalidateOnAnimation();
+    }
+
+    public void resume() {
+        if (!isPaused) return;
+
+        isPaused = false;
+
+        if (animator != null) {
+            if (Build.VERSION.SDK_INT >= 19) {
+                animator.resume();
+                return;
+            }
+        }
+
+        float startY = Float.isNaN(pausedY) ? currentY : pausedY;
+        pausedY = Float.NaN;
+        restartAnimatorFrom(startY);
+    }
+
     public void stop() {
+        stopInternal(true);
+    }
+
+    private void stopInternal(boolean resetPos) {
         if (animator != null) {
             animator.cancel();
             animator.removeAllUpdateListeners();
             animator = null;
         }
+        if (resetPos) {
+            isPaused = false;
+            pausedY = Float.NaN;
+        }
+    }
+
+    private float clamp(float v, float min, float max) {
+        return Math.max(min, Math.min(max, v));
     }
 }
