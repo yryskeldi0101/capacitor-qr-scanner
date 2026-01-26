@@ -7,12 +7,24 @@ final class QrCodeScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
     private let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "qr.camera.queue")
     private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var overlay: QRScanOverlayView?
     private var paused = false
 
     private var currentDevice: AVCaptureDevice?
 
     var onResult: (([VNBarcodeObservation]) -> Void)?
     var onError: ((String) -> Void)?
+
+    private func attachOverlay(to previewView: UIView) {
+        overlay?.removeFromSuperview()
+
+        let ov = QRScanOverlayView(frame: previewView.bounds)
+        ov.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        previewView.addSubview(ov)
+
+        overlay = ov
+        ov.startAnimating()
+    }
 
     // MARK: - Start
 
@@ -80,6 +92,7 @@ final class QrCodeScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
         previewView.layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         previewView.layer.addSublayer(layer)
         previewLayer = layer
+        attachOverlay(to: previewView)
 
         paused = false
 
@@ -90,17 +103,33 @@ final class QrCodeScanner: NSObject, AVCaptureVideoDataOutputSampleBufferDelegat
 
     func updatePreviewFrame(_ frame: CGRect) {
         previewLayer?.frame = frame
+        overlay?.frame = frame
     }
 
     // MARK: - Stop / Pause / Resume
 
     func stop() {
         paused = true
-        if session.isRunning {
-            session.stopRunning()
+
+        // Сессию можно останавливать не на main (но лучше не блокировать UI)
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            if self.session.isRunning {
+                self.session.stopRunning()
+            }
         }
-        previewLayer?.removeFromSuperlayer()
-        previewLayer = nil
+
+        // ❗️UI / Layer — строго main
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+
+            self.previewLayer?.removeFromSuperlayer()
+            self.previewLayer = nil
+
+            self.overlay?.stopAnimating()
+            self.overlay?.removeFromSuperview()
+            self.overlay = nil
+        }
     }
 
     func pause() { paused = true }
