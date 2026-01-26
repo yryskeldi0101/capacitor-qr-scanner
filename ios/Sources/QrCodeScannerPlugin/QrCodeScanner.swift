@@ -30,13 +30,6 @@ final class QrCodeScanner: NSObject {
     // Freeze UI
     private var freezeView: UIImageView?
 
-    // ✅ SAFETY: configuration depth (0 => safe to stopRunning)
-    private var configDepth: Int = 0
-    private var pendingStop: Bool = false
-
-    // ✅ ensure stopRunning is never called in same tick as begin/commit
-    private var stopScheduled: Bool = false
-
     var onResult: (([VNBarcodeObservation]) -> Void)?
     var onError: ((String) -> Void)?
 
@@ -53,39 +46,8 @@ final class QrCodeScanner: NSObject {
         ov.startAnimating()
     }
 
-    // MARK: - StopRunning scheduler (✅ no crash on iOS 26)
-
-    // Must be called ONLY on sessionQueue
-    private func scheduleStopRunning() {
-        if stopScheduled { return }
-        stopScheduled = true
-
-        sessionQueue.async { [weak self] in
-            guard let self = self else { return }
-
-            // Still configuring -> retry later
-            if self.configDepth > 0 {
-                self.stopScheduled = false
-                self.pendingStop = true
-                self.scheduleStopRunning()
-                return
-            }
-
-            self.stopScheduled = false
-            self.pendingStop = false
-
-            if self.session.isRunning {
-                self.session.stopRunning()
-            }
-
-            self.videoConnection = nil
-            self.videoOutput = nil
-            self.photoOutput = nil
-        }
-    }
-
     // MARK: - Start
-
+    
     func start(previewView: UIView, lens: String, resolution: Int) throws {
         let token = UUID()
         startStopToken = token
@@ -102,23 +64,15 @@ final class QrCodeScanner: NSObject {
         }
         currentDevice = device
 
+        // 1) CONFIGURE graph (begin/commit only)
         sessionQueue.async { [weak self, weak previewView] in
             guard let self = self else { return }
             guard self.startStopToken == token else { return }
 
-            // ✅ BEGIN CONFIGURE (commit guaranteed)
-            self.configDepth += 1
             self.session.beginConfiguration()
 
-            defer {
-                self.session.commitConfiguration()
-                self.configDepth = max(0, self.configDepth - 1)
-
-                // ✅ if stop requested during configuration, stop safely AFTER commit (next tick)
-                if self.pendingStop && self.configDepth == 0 {
-                    self.scheduleStopRunning()
-                }
-            }
+            // ✅ guarantee commit happens before we do anything else
+            defer { self.session.commitConfiguration() }
 
             // preset
             switch resolution {
@@ -133,7 +87,7 @@ final class QrCodeScanner: NSObject {
             default: self.session.sessionPreset = .hd1280x720
             }
 
-            // clear old
+            // clear old graph
             for input in self.session.inputs { self.session.removeInput(input) }
             for output in self.session.outputs { self.session.removeOutput(output) }
 
@@ -174,11 +128,13 @@ final class QrCodeScanner: NSObject {
             self.session.addOutput(pOut)
             self.photoOutput = pOut
 
-            // ✅ startRunning must be after commit; schedule next tick
+            // ✅ IMPORTANT: do NOT call startRunning here
+            // commit will happen via defer before we go to next block
+
+            // 2) START running + UI (next tick on sessionQueue)
             self.sessionQueue.async { [weak self, weak previewView] in
                 guard let self = self else { return }
                 guard self.startStopToken == token else { return }
-                guard self.configDepth == 0 else { return }
 
                 if !self.session.isRunning {
                     self.session.startRunning()
@@ -220,18 +176,13 @@ final class QrCodeScanner: NSObject {
         }
     }
 
-    // MARK: - Stop (✅ no crash)
+    // MARK: - Stop (✅ NO stopRunning => NO crash)
 
     func stop() {
         paused = true
         startStopToken = UUID()
 
-        sessionQueue.async { [weak self] in
-            guard let self = self else { return }
-            self.pendingStop = true
-            self.scheduleStopRunning()
-        }
-
+        // 1) Detach UI immediately
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
@@ -245,13 +196,34 @@ final class QrCodeScanner: NSObject {
             self.freezeView?.removeFromSuperview()
             self.freezeView = nil
         }
+
+        // 2) Release camera by removing ALL inputs/outputs (no stopRunning)
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+
+            self.videoConnection?.isEnabled = false
+            self.videoConnection = nil
+            self.videoOutput = nil
+            self.photoOutput = nil
+            self.isCapturingFreezePhoto = false
+            self.pendingDisableVideoAfterPhoto = false
+
+            self.session.beginConfiguration()
+            defer { self.session.commitConfiguration() }
+
+            for output in self.session.outputs { self.session.removeOutput(output) }
+            for input in self.session.inputs { self.session.removeInput(input) }
+
+            self.currentDevice = nil
+        }
     }
 
-    // MARK: - Pause / Resume (no stopRunning/startRunning)
+    // MARK: - Pause / Resume (no restart)
 
     func pause(previewHostView: UIView?) {
         paused = true
 
+        // Freeze UI + overlay pause
         DispatchQueue.main.async { [weak self, weak previewHostView] in
             guard let self = self, let host = previewHostView else { return }
 
@@ -273,10 +245,12 @@ final class QrCodeScanner: NSObject {
     }
 
     func resume() {
+        // enable frames
         sessionQueue.async { [weak self] in
             self?.videoConnection?.isEnabled = true
         }
 
+        // hide freeze + overlay resume
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.freezeView?.image = nil
