@@ -1,0 +1,1754 @@
+{
+  "api": {
+    "name": "QrCodeScannerPlugin",
+    "slug": "qrcodescannerplugin",
+    "docs": "",
+    "tags": [],
+    "methods": [
+      {
+        "name": "startScan",
+        "signature": "(options?: StartScanOptions | undefined) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "StartScanOptions | undefined"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "StartScanOptions"
+        ],
+        "slug": "startscan"
+      },
+      {
+        "name": "stopScan",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "stopscan"
+      },
+      {
+        "name": "pauseScan",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "pausescan"
+      },
+      {
+        "name": "resumeScan",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "resumescan"
+      },
+      {
+        "name": "readBarcodesFromImage",
+        "signature": "(options: ReadBarcodesFromImageOptions) => Promise<ReadBarcodesFromImageResult>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "ReadBarcodesFromImageOptions"
+          }
+        ],
+        "returns": "Promise<ReadBarcodesFromImageResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "ReadBarcodesFromImageResult",
+          "ReadBarcodesFromImageOptions"
+        ],
+        "slug": "readbarcodesfromimage"
+      },
+      {
+        "name": "scan",
+        "signature": "(options?: ScanOptions | undefined) => Promise<ScanResult>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "ScanOptions | undefined"
+          }
+        ],
+        "returns": "Promise<ScanResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "ScanResult",
+          "ScanOptions"
+        ],
+        "slug": "scan"
+      },
+      {
+        "name": "isSupported",
+        "signature": "() => Promise<IsSupportedResult>",
+        "parameters": [],
+        "returns": "Promise<IsSupportedResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "IsSupportedResult"
+        ],
+        "slug": "issupported"
+      },
+      {
+        "name": "enableTorch",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "enabletorch"
+      },
+      {
+        "name": "disableTorch",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "disabletorch"
+      },
+      {
+        "name": "toggleTorch",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "toggletorch"
+      },
+      {
+        "name": "isTorchEnabled",
+        "signature": "() => Promise<IsTorchEnabledResult>",
+        "parameters": [],
+        "returns": "Promise<IsTorchEnabledResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "IsTorchEnabledResult"
+        ],
+        "slug": "istorchenabled"
+      },
+      {
+        "name": "isTorchAvailable",
+        "signature": "() => Promise<IsTorchAvailableResult>",
+        "parameters": [],
+        "returns": "Promise<IsTorchAvailableResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "IsTorchAvailableResult"
+        ],
+        "slug": "istorchavailable"
+      },
+      {
+        "name": "setZoomRatio",
+        "signature": "(options: SetZoomRatioOptions) => Promise<void>",
+        "parameters": [
+          {
+            "name": "options",
+            "docs": "",
+            "type": "SetZoomRatioOptions"
+          }
+        ],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "SetZoomRatioOptions"
+        ],
+        "slug": "setzoomratio"
+      },
+      {
+        "name": "getZoomRatio",
+        "signature": "() => Promise<GetZoomRatioResult>",
+        "parameters": [],
+        "returns": "Promise<GetZoomRatioResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "GetZoomRatioResult"
+        ],
+        "slug": "getzoomratio"
+      },
+      {
+        "name": "getMinZoomRatio",
+        "signature": "() => Promise<GetMinZoomRatioResult>",
+        "parameters": [],
+        "returns": "Promise<GetMinZoomRatioResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "GetMinZoomRatioResult"
+        ],
+        "slug": "getminzoomratio"
+      },
+      {
+        "name": "getMaxZoomRatio",
+        "signature": "() => Promise<GetMaxZoomRatioResult>",
+        "parameters": [],
+        "returns": "Promise<GetMaxZoomRatioResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "GetMaxZoomRatioResult"
+        ],
+        "slug": "getmaxzoomratio"
+      },
+      {
+        "name": "openSettings",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "opensettings"
+      },
+      {
+        "name": "isGoogleBarcodeScannerModuleAvailable",
+        "signature": "() => Promise<IsGoogleBarcodeScannerModuleAvailableResult>",
+        "parameters": [],
+        "returns": "Promise<IsGoogleBarcodeScannerModuleAvailableResult>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "IsGoogleBarcodeScannerModuleAvailableResult"
+        ],
+        "slug": "isgooglebarcodescannermoduleavailable"
+      },
+      {
+        "name": "installGoogleBarcodeScannerModule",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "installgooglebarcodescannermodule"
+      },
+      {
+        "name": "checkPermissions",
+        "signature": "() => Promise<PermissionStatus>",
+        "parameters": [],
+        "returns": "Promise<PermissionStatus>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PermissionStatus"
+        ],
+        "slug": "checkpermissions"
+      },
+      {
+        "name": "requestPermissions",
+        "signature": "() => Promise<PermissionStatus>",
+        "parameters": [],
+        "returns": "Promise<PermissionStatus>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PermissionStatus"
+        ],
+        "slug": "requestpermissions"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'barcodesScanned', listenerFunc: (event: BarcodesScannedEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'barcodesScanned'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: BarcodesScannedEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "BarcodesScannedEvent"
+        ],
+        "slug": "addlistenerbarcodesscanned-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'scanError', listenerFunc: (event: ScanErrorEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'scanError'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: ScanErrorEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "ScanErrorEvent"
+        ],
+        "slug": "addlistenerscanerror-"
+      },
+      {
+        "name": "addListener",
+        "signature": "(eventName: 'googleBarcodeScannerModuleInstallProgress', listenerFunc: (event: GoogleBarcodeScannerModuleInstallProgressEvent) => void) => Promise<PluginListenerHandle>",
+        "parameters": [
+          {
+            "name": "eventName",
+            "docs": "",
+            "type": "'googleBarcodeScannerModuleInstallProgress'"
+          },
+          {
+            "name": "listenerFunc",
+            "docs": "",
+            "type": "(event: GoogleBarcodeScannerModuleInstallProgressEvent) => void"
+          }
+        ],
+        "returns": "Promise<PluginListenerHandle>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [
+          "PluginListenerHandle",
+          "GoogleBarcodeScannerModuleInstallProgressEvent"
+        ],
+        "slug": "addlistenergooglebarcodescannermoduleinstallprogress-"
+      },
+      {
+        "name": "removeAllListeners",
+        "signature": "() => Promise<void>",
+        "parameters": [],
+        "returns": "Promise<void>",
+        "tags": [],
+        "docs": "",
+        "complexTypes": [],
+        "slug": "removealllisteners"
+      }
+    ],
+    "properties": []
+  },
+  "interfaces": [
+    {
+      "name": "StartScanOptions",
+      "slug": "startscanoptions",
+      "docs": "Options",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "formats",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeFormat"
+          ],
+          "type": "BarcodeFormat[] | undefined"
+        },
+        {
+          "name": "lensFacing",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "LensFacing"
+          ],
+          "type": "LensFacing"
+        },
+        {
+          "name": "resolution",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Resolution"
+          ],
+          "type": "Resolution"
+        },
+        {
+          "name": "enableMultitaskingCameraAccess",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean | undefined"
+        },
+        {
+          "name": "videoElement",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "HTMLVideoElement"
+          ],
+          "type": "HTMLVideoElement"
+        }
+      ]
+    },
+    {
+      "name": "ReadBarcodesFromImageResult",
+      "slug": "readbarcodesfromimageresult",
+      "docs": "Results",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "barcodes",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Barcode"
+          ],
+          "type": "Barcode[]"
+        }
+      ]
+    },
+    {
+      "name": "Barcode",
+      "slug": "barcode",
+      "docs": "Barcode model",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "bytes",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number[] | undefined"
+        },
+        {
+          "name": "calendarEvent",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeCalendarEvent"
+          ],
+          "type": "BarcodeCalendarEvent"
+        },
+        {
+          "name": "contactInfo",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeContactInfo"
+          ],
+          "type": "BarcodeContactInfo"
+        },
+        {
+          "name": "cornerPoints",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "[[number, number], [number, number], [number, number], [number, number]] | undefined"
+        },
+        {
+          "name": "displayValue",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        },
+        {
+          "name": "driverLicense",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeDriverLicense"
+          ],
+          "type": "BarcodeDriverLicense"
+        },
+        {
+          "name": "email",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeEmail"
+          ],
+          "type": "BarcodeEmail"
+        },
+        {
+          "name": "format",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeFormat"
+          ],
+          "type": "BarcodeFormat"
+        },
+        {
+          "name": "geoPoint",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeGeoPoint"
+          ],
+          "type": "BarcodeGeoPoint"
+        },
+        {
+          "name": "phone",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodePhone"
+          ],
+          "type": "BarcodePhone"
+        },
+        {
+          "name": "rawValue",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "sms",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeSms"
+          ],
+          "type": "BarcodeSms"
+        },
+        {
+          "name": "urlBookmark",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeUrlBookmark"
+          ],
+          "type": "BarcodeUrlBookmark"
+        },
+        {
+          "name": "valueType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeValueType"
+          ],
+          "type": "BarcodeValueType"
+        },
+        {
+          "name": "wifi",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeWifi"
+          ],
+          "type": "BarcodeWifi"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeCalendarEvent",
+      "slug": "barcodecalendarevent",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "description",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "end",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "location",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "organizer",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "start",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "status",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "summary",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeContactInfo",
+      "slug": "barcodecontactinfo",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "addresses",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Address"
+          ],
+          "type": "Address[] | undefined"
+        },
+        {
+          "name": "emails",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeEmail"
+          ],
+          "type": "BarcodeEmail[] | undefined"
+        },
+        {
+          "name": "personName",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "PersonName"
+          ],
+          "type": "PersonName"
+        },
+        {
+          "name": "organization",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "phones",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodePhone"
+          ],
+          "type": "BarcodePhone[] | undefined"
+        },
+        {
+          "name": "title",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "urls",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string[] | undefined"
+        }
+      ]
+    },
+    {
+      "name": "Address",
+      "slug": "address",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "addressLines",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string[] | undefined"
+        },
+        {
+          "name": "type",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "AddressType"
+          ],
+          "type": "AddressType"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeEmail",
+      "slug": "barcodeemail",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "address",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "body",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "subject",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "type",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "EmailFormatType"
+          ],
+          "type": "EmailFormatType"
+        }
+      ]
+    },
+    {
+      "name": "PersonName",
+      "slug": "personname",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "first",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "formattedName",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "last",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "middle",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "prefix",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "pronunciation",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "suffix",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BarcodePhone",
+      "slug": "barcodephone",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "number",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "type",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "PhoneFormatType"
+          ],
+          "type": "PhoneFormatType"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeDriverLicense",
+      "slug": "barcodedriverlicense",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "addressCity",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "addressState",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "addressStreet",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "addressZip",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "birthDate",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "documentType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "expiryDate",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "firstName",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "gender",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "issueDate",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "issuingCountry",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "lastName",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "licenseNumber",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "middleName",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeGeoPoint",
+      "slug": "barcodegeopoint",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "latitude",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number | undefined"
+        },
+        {
+          "name": "longitude",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeSms",
+      "slug": "barcodesms",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "phoneNumber",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "message",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeUrlBookmark",
+      "slug": "barcodeurlbookmark",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "url",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "title",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "BarcodeWifi",
+      "slug": "barcodewifi",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "encryptionType",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "WifiEncryptionType"
+          ],
+          "type": "WifiEncryptionType"
+        },
+        {
+          "name": "password",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "ssid",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        }
+      ]
+    },
+    {
+      "name": "ReadBarcodesFromImageOptions",
+      "slug": "readbarcodesfromimageoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "formats",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeFormat"
+          ],
+          "type": "BarcodeFormat[] | undefined"
+        },
+        {
+          "name": "path",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "ScanResult",
+      "slug": "scanresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "barcodes",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Barcode"
+          ],
+          "type": "Barcode[]"
+        }
+      ]
+    },
+    {
+      "name": "ScanOptions",
+      "slug": "scanoptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "formats",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "BarcodeFormat"
+          ],
+          "type": "BarcodeFormat[] | undefined"
+        },
+        {
+          "name": "autoZoom",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean | undefined"
+        }
+      ]
+    },
+    {
+      "name": "IsSupportedResult",
+      "slug": "issupportedresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "supported",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "IsTorchEnabledResult",
+      "slug": "istorchenabledresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "enabled",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "IsTorchAvailableResult",
+      "slug": "istorchavailableresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "available",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "SetZoomRatioOptions",
+      "slug": "setzoomratiooptions",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "zoomRatio",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "name": "GetZoomRatioResult",
+      "slug": "getzoomratioresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "zoomRatio",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "name": "GetMinZoomRatioResult",
+      "slug": "getminzoomratioresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "zoomRatio",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "name": "GetMaxZoomRatioResult",
+      "slug": "getmaxzoomratioresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "zoomRatio",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number"
+        }
+      ]
+    },
+    {
+      "name": "IsGoogleBarcodeScannerModuleAvailableResult",
+      "slug": "isgooglebarcodescannermoduleavailableresult",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "available",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "PermissionStatus",
+      "slug": "permissionstatus",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "camera",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "CameraPermissionState"
+          ],
+          "type": "CameraPermissionState"
+        }
+      ]
+    },
+    {
+      "name": "PluginListenerHandle",
+      "slug": "pluginlistenerhandle",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "remove",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "() => Promise<void>"
+        }
+      ]
+    },
+    {
+      "name": "BarcodesScannedEvent",
+      "slug": "barcodesscannedevent",
+      "docs": "Events",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "barcodes",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "Barcode"
+          ],
+          "type": "Barcode[]"
+        }
+      ]
+    },
+    {
+      "name": "ScanErrorEvent",
+      "slug": "scanerrorevent",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "message",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "GoogleBarcodeScannerModuleInstallProgressEvent",
+      "slug": "googlebarcodescannermoduleinstallprogressevent",
+      "docs": "",
+      "tags": [],
+      "methods": [],
+      "properties": [
+        {
+          "name": "state",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [
+            "GoogleBarcodeScannerModuleInstallState"
+          ],
+          "type": "GoogleBarcodeScannerModuleInstallState"
+        },
+        {
+          "name": "progress",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number | undefined"
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "BarcodeFormat",
+      "slug": "barcodeformat",
+      "members": [
+        {
+          "name": "Aztec",
+          "value": "'AZTEC'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Codabar",
+          "value": "'CODABAR'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Code39",
+          "value": "'CODE_39'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Code93",
+          "value": "'CODE_93'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Code128",
+          "value": "'CODE_128'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "DataMatrix",
+          "value": "'DATA_MATRIX'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Ean8",
+          "value": "'EAN_8'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Ean13",
+          "value": "'EAN_13'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Itf",
+          "value": "'ITF'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Pdf417",
+          "value": "'PDF_417'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "QrCode",
+          "value": "'QR_CODE'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "UpcA",
+          "value": "'UPC_A'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "UpcE",
+          "value": "'UPC_E'",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "LensFacing",
+      "slug": "lensfacing",
+      "members": [
+        {
+          "name": "Front",
+          "value": "'FRONT'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Back",
+          "value": "'BACK'",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "Resolution",
+      "slug": "resolution",
+      "members": [
+        {
+          "name": "'640x480'",
+          "value": "0",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "'1280x720'",
+          "value": "1",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "'1920x1080'",
+          "value": "2",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "'3840x2160'",
+          "value": "3",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "AddressType",
+      "slug": "addresstype",
+      "members": [
+        {
+          "name": "HOME",
+          "value": "0",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "UNKNOWN",
+          "value": "1",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "WORK",
+          "value": "2",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "EmailFormatType",
+      "slug": "emailformattype",
+      "members": [
+        {
+          "name": "HOME",
+          "value": "0",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "UNKNOWN",
+          "value": "1",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "WORK",
+          "value": "2",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "PhoneFormatType",
+      "slug": "phoneformattype",
+      "members": [
+        {
+          "name": "FAX",
+          "value": "0",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "HOME",
+          "value": "1",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "MOBILE",
+          "value": "2",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "UNKNOWN",
+          "value": "3",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "WORK",
+          "value": "4",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "BarcodeValueType",
+      "slug": "barcodevaluetype",
+      "members": [
+        {
+          "name": "CalendarEvent",
+          "value": "'CALENDAR_EVENT'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "ContactInfo",
+          "value": "'CONTACT_INFO'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "DriversLicense",
+          "value": "'DRIVERS_LICENSE'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Email",
+          "value": "'EMAIL'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Geo",
+          "value": "'GEO'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Isbn",
+          "value": "'ISBN'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Phone",
+          "value": "'PHONE'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Product",
+          "value": "'PRODUCT'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Sms",
+          "value": "'SMS'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Text",
+          "value": "'TEXT'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Url",
+          "value": "'URL'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Wifi",
+          "value": "'WIFI'",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "Unknown",
+          "value": "'UNKNOWN'",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "WifiEncryptionType",
+      "slug": "wifiencryptiontype",
+      "members": [
+        {
+          "name": "OPEN",
+          "value": "1",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "WEP",
+          "value": "2",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "WPA",
+          "value": "3",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    },
+    {
+      "name": "GoogleBarcodeScannerModuleInstallState",
+      "slug": "googlebarcodescannermoduleinstallstate",
+      "members": [
+        {
+          "name": "UNKNOWN",
+          "value": "0",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "PENDING",
+          "value": "1",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "DOWNLOADING",
+          "value": "2",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "CANCELED",
+          "value": "3",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "COMPLETED",
+          "value": "4",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "FAILED",
+          "value": "5",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "INSTALLING",
+          "value": "6",
+          "tags": [],
+          "docs": ""
+        },
+        {
+          "name": "DOWNLOAD_PAUSED",
+          "value": "7",
+          "tags": [],
+          "docs": ""
+        }
+      ]
+    }
+  ],
+  "typeAliases": [
+    {
+      "name": "CameraPermissionState",
+      "slug": "camerapermissionstate",
+      "docs": "Permissions",
+      "types": [
+        {
+          "text": "PermissionState",
+          "complexTypes": [
+            "PermissionState"
+          ]
+        },
+        {
+          "text": "'limited'",
+          "complexTypes": []
+        }
+      ]
+    },
+    {
+      "name": "PermissionState",
+      "slug": "permissionstate",
+      "docs": "",
+      "types": [
+        {
+          "text": "'prompt'",
+          "complexTypes": []
+        },
+        {
+          "text": "'prompt-with-rationale'",
+          "complexTypes": []
+        },
+        {
+          "text": "'granted'",
+          "complexTypes": []
+        },
+        {
+          "text": "'denied'",
+          "complexTypes": []
+        }
+      ]
+    }
+  ],
+  "pluginConfigs": []
+}
