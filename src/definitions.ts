@@ -156,7 +156,7 @@ export interface Barcode {
   geoPoint?: BarcodeGeoPoint;
   phone?: BarcodePhone;
 
-  rawValue?: string;
+  rawValue: string;
 
   sms?: BarcodeSms;
   urlBookmark?: BarcodeUrlBookmark;

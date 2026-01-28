@@ -111,7 +111,7 @@ export interface Barcode {
     format: BarcodeFormat;
     geoPoint?: BarcodeGeoPoint;
     phone?: BarcodePhone;
-    rawValue?: string;
+    rawValue: string;
     sms?: BarcodeSms;
     urlBookmark?: BarcodeUrlBookmark;
     valueType: BarcodeValueType;

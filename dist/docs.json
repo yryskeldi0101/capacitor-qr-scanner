@@ -519,7 +519,7 @@
           "tags": [],
           "docs": "",
           "complexTypes": [],
-          "type": "string | undefined"
+          "type": "string"
         },
         {
           "name": "sms",
