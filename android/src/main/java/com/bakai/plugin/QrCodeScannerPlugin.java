@@ -1,9 +1,15 @@
 package com.bakai.plugin;
 
 import android.Manifest;
+import android.content.ContentResolver;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
 import android.net.Uri;
 import android.provider.Settings;
 import android.view.ViewParent;
@@ -19,16 +25,25 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
 import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
 import com.google.mlkit.vision.common.InputImage;
+import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @CapacitorPlugin(name = "QrCodeScanner", permissions = { @Permission(strings = Manifest.permission.CAMERA, alias = "camera") })
 public class QrCodeScannerPlugin extends Plugin {
+
+    private static final int IMAGE_MIN_SIDE_FOR_DECODE = 1200;
+    private static final int IMAGE_MAX_SIDE_FOR_DECODE = 2200;
 
     private QrCodeScanner scanner;
     private PreviewView previewView;
@@ -48,11 +63,12 @@ public class QrCodeScannerPlugin extends Plugin {
 
     @PluginMethod
     public void startScan(PluginCall call) {
-        final JSObject options = call.getObject("options");
+        final JSObject options = getOptions(call);
 
         final String lensFacing = options != null ? options.getString("lensFacing", "BACK") : "BACK";
 
-        final int resolution = options != null ? options.getInteger("resolution", 1) : 1;
+        // 1080p by default gives better recognition for branded/partially-occluded QR codes.
+        final int resolution = options != null ? options.getInteger("resolution", 2) : 2;
 
         if (getActivity() == null) {
             call.reject("Activity is null");
@@ -245,22 +261,86 @@ public class QrCodeScannerPlugin extends Plugin {
             return;
         }
 
-        try {
-            InputImage image = InputImage.fromFilePath(getContext(), Uri.parse(path));
-            BarcodeScanner sc = BarcodeScanning.getClient();
-
-            sc
-                .process(image)
-                .addOnSuccessListener((barcodes) -> call.resolve(BarcodeMapper.toJS(barcodes)))
-                .addOnFailureListener((e) -> call.reject(e.getMessage() != null ? e.getMessage() : "Failed to read barcodes"));
-        } catch (Exception e) {
-            call.reject(e.getMessage() != null ? e.getMessage() : "Failed to read barcodes");
+        final Uri uri = normalizePathToUri(path);
+        if (uri == null) {
+            call.reject("Invalid image path");
+            return;
         }
+
+        final List<InputImage> candidates = new ArrayList<>();
+        final Set<Bitmap> recyclableBitmaps = new HashSet<>();
+
+        BarcodeScannerOptions scannerOptions = new BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            .enableAllPotentialBarcodes()
+            .build();
+
+        final BarcodeScanner imageScanner = BarcodeScanning.getClient(scannerOptions);
+
+        try {
+            // 1) Native file-path decode (includes EXIF orientation handling in ML Kit).
+            candidates.add(InputImage.fromFilePath(getContext(), uri));
+
+            // 2) Fallback variants for stylized/low-contrast/angled QR codes.
+            Bitmap source = loadBitmapFromUri(uri);
+            if (source != null) {
+                Bitmap normalized = normalizeBitmapForDecode(source);
+                recyclableBitmaps.add(normalized);
+
+                addCandidate(candidates, normalized, 0);
+                addCandidate(candidates, normalized, 90);
+                addCandidate(candidates, normalized, 180);
+                addCandidate(candidates, normalized, 270);
+
+                Bitmap boosted = createHighContrastBitmap(normalized);
+                if (boosted != null) {
+                    recyclableBitmaps.add(boosted);
+                    addCandidate(candidates, boosted, 0);
+                    addCandidate(candidates, boosted, 90);
+                    addCandidate(candidates, boosted, 270);
+                }
+
+                Bitmap binary = createBinaryBitmap(normalized);
+                if (binary != null) {
+                    recyclableBitmaps.add(binary);
+                    addCandidate(candidates, binary, 0);
+                }
+
+                Bitmap centerCrop = createCenteredSquare(normalized, 0.88f);
+                if (centerCrop != null) {
+                    recyclableBitmaps.add(centerCrop);
+                    addCandidate(candidates, centerCrop, 0);
+                    addCandidate(candidates, centerCrop, 90);
+                }
+            }
+        } catch (Exception e) {
+            imageScanner.close();
+            recycleBitmaps(recyclableBitmaps);
+            call.reject(e.getMessage() != null ? e.getMessage() : "Failed to read barcodes");
+            return;
+        }
+
+        if (candidates.isEmpty()) {
+            imageScanner.close();
+            recycleBitmaps(recyclableBitmaps);
+            call.resolve(BarcodeMapper.toJS(new ArrayList<>()));
+            return;
+        }
+
+        processImageCandidates(imageScanner, candidates, 0, recyclableBitmaps, call);
     }
 
     @PluginMethod
     public void scan(PluginCall call) {
-        GmsBarcodeScanner gms = GmsBarcodeScanning.getClient(getContext());
+        JSObject options = getOptions(call);
+        boolean autoZoom = options != null && options.optBoolean("autoZoom", false);
+
+        GmsBarcodeScannerOptions.Builder builder = new GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE);
+        if (autoZoom) {
+            builder.enableAutoZoom();
+        }
+
+        GmsBarcodeScanner gms = GmsBarcodeScanning.getClient(getContext(), builder.build());
 
         gms
             .startScan()
@@ -270,6 +350,240 @@ public class QrCodeScannerPlugin extends Plugin {
                 call.resolve(BarcodeMapper.toJS(list));
             })
             .addOnFailureListener((e) -> call.reject(e.getMessage() != null ? e.getMessage() : "Scan cancelled/failed"));
+    }
+
+    private JSObject getOptions(PluginCall call) {
+        JSObject nested = call.getObject("options");
+        if (nested != null) return nested;
+
+        JSObject data = call.getData();
+        return data != null ? data : new JSObject();
+    }
+
+    private Uri normalizePathToUri(String path) {
+        if (path == null || path.trim().isEmpty()) return null;
+
+        Uri uri = Uri.parse(path);
+        if (uri.getScheme() == null || uri.getScheme().trim().isEmpty()) {
+            return Uri.fromFile(new File(path));
+        }
+        return uri;
+    }
+
+    private Bitmap loadBitmapFromUri(Uri uri) {
+        if (uri == null) return null;
+
+        ContentResolver resolver = getContext().getContentResolver();
+        BitmapFactory.Options decodeOptions = new BitmapFactory.Options();
+        decodeOptions.inPreferredConfig = Bitmap.Config.ARGB_8888;
+
+        try (InputStream input = resolver.openInputStream(uri)) {
+            if (input == null) return null;
+            return BitmapFactory.decodeStream(input, null, decodeOptions);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Bitmap normalizeBitmapForDecode(Bitmap source) {
+        if (source == null) return null;
+
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int minSide = Math.min(width, height);
+        int maxSide = Math.max(width, height);
+
+        float scale = 1f;
+        if (maxSide > IMAGE_MAX_SIDE_FOR_DECODE) {
+            scale = IMAGE_MAX_SIDE_FOR_DECODE / (float) maxSide;
+        } else if (minSide < IMAGE_MIN_SIDE_FOR_DECODE) {
+            scale = IMAGE_MIN_SIDE_FOR_DECODE / (float) minSide;
+        }
+
+        if (Math.abs(scale - 1f) < 0.01f) return source;
+
+        int targetWidth = Math.max(1, Math.round(width * scale));
+        int targetHeight = Math.max(1, Math.round(height * scale));
+        try {
+            Bitmap scaled = Bitmap.createScaledBitmap(source, targetWidth, targetHeight, true);
+            if (scaled != source) {
+                try {
+                    source.recycle();
+                } catch (Exception ignored) {}
+            }
+            return scaled;
+        } catch (Exception ignored) {
+            return source;
+        }
+    }
+
+    private Bitmap createHighContrastBitmap(Bitmap source) {
+        if (source == null || source.isRecycled()) return null;
+
+        try {
+            Bitmap output = Bitmap.createBitmap(source.getWidth(), source.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(output);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+            ColorMatrix matrix = new ColorMatrix();
+            matrix.setSaturation(0f);
+
+            float contrast = 1.55f;
+            float translate = (-0.5f * contrast + 0.5f) * 255f;
+            ColorMatrix contrastMatrix = new ColorMatrix(
+                new float[] {
+                    contrast, 0, 0, 0, translate,
+                    0, contrast, 0, 0, translate,
+                    0, 0, contrast, 0, translate,
+                    0, 0, 0, 1, 0
+                }
+            );
+            matrix.postConcat(contrastMatrix);
+
+            paint.setColorFilter(new ColorMatrixColorFilter(matrix));
+            canvas.drawBitmap(source, 0f, 0f, paint);
+            return output;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Bitmap createBinaryBitmap(Bitmap source) {
+        if (source == null || source.isRecycled()) return null;
+
+        final int width = source.getWidth();
+        final int height = source.getHeight();
+        final int total = width * height;
+        if (total <= 0) return null;
+
+        try {
+            int[] pixels = new int[total];
+            source.getPixels(pixels, 0, width, 0, 0, width, height);
+
+            long sum = 0L;
+            for (int i = 0; i < total; i++) {
+                int c = pixels[i];
+                int r = (c >> 16) & 0xff;
+                int g = (c >> 8) & 0xff;
+                int b = c & 0xff;
+                int luma = (int) (0.299f * r + 0.587f * g + 0.114f * b);
+                sum += luma;
+            }
+
+            int threshold = (int) (sum / total);
+            threshold = Math.max(80, Math.min(190, threshold));
+
+            for (int i = 0; i < total; i++) {
+                int c = pixels[i];
+                int r = (c >> 16) & 0xff;
+                int g = (c >> 8) & 0xff;
+                int b = c & 0xff;
+                int luma = (int) (0.299f * r + 0.587f * g + 0.114f * b);
+                pixels[i] = luma >= threshold ? Color.WHITE : Color.BLACK;
+            }
+
+            Bitmap output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            output.setPixels(pixels, 0, width, 0, 0, width, height);
+            return output;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Bitmap createCenteredSquare(Bitmap source, float ratio) {
+        if (source == null || source.isRecycled()) return null;
+        if (ratio <= 0f || ratio > 1f) return null;
+
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int side = Math.max(1, Math.round(Math.min(width, height) * ratio));
+
+        if (side >= width && side >= height) return null;
+
+        int left = Math.max(0, (width - side) / 2);
+        int top = Math.max(0, (height - side) / 2);
+
+        try {
+            return Bitmap.createBitmap(source, left, top, side, side);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void addCandidate(List<InputImage> candidates, Bitmap bitmap, int rotationDegrees) {
+        if (bitmap == null || bitmap.isRecycled()) return;
+        if (candidates == null) return;
+
+        try {
+            candidates.add(InputImage.fromBitmap(bitmap, rotationDegrees));
+        } catch (Exception ignored) {}
+    }
+
+    private List<Barcode> filterDecodedBarcodes(List<Barcode> barcodes) {
+        List<Barcode> decoded = new ArrayList<>();
+        if (barcodes == null || barcodes.isEmpty()) return decoded;
+
+        for (Barcode barcode : barcodes) {
+            if (barcode == null) continue;
+            if (!hasBarcodePayload(barcode)) continue;
+            decoded.add(barcode);
+        }
+        return decoded;
+    }
+
+    private boolean hasBarcodePayload(Barcode barcode) {
+        String raw = barcode.getRawValue();
+        if (raw != null && !raw.trim().isEmpty()) return true;
+
+        String display = barcode.getDisplayValue();
+        return display != null && !display.trim().isEmpty();
+    }
+
+    private void recycleBitmaps(Set<Bitmap> bitmaps) {
+        if (bitmaps == null || bitmaps.isEmpty()) return;
+
+        for (Bitmap bitmap : bitmaps) {
+            if (bitmap == null || bitmap.isRecycled()) continue;
+            try {
+                bitmap.recycle();
+            } catch (Exception ignored) {}
+        }
+        bitmaps.clear();
+    }
+
+    private void processImageCandidates(
+        BarcodeScanner imageScanner,
+        List<InputImage> candidates,
+        int index,
+        Set<Bitmap> recyclableBitmaps,
+        PluginCall call
+    ) {
+        if (index >= candidates.size()) {
+            try {
+                imageScanner.close();
+            } catch (Exception ignored) {}
+            recycleBitmaps(recyclableBitmaps);
+            call.resolve(BarcodeMapper.toJS(new ArrayList<>()));
+            return;
+        }
+
+        imageScanner
+            .process(candidates.get(index))
+            .addOnSuccessListener((barcodes) -> {
+                List<Barcode> decoded = filterDecodedBarcodes(barcodes);
+                if (!decoded.isEmpty()) {
+                    try {
+                        imageScanner.close();
+                    } catch (Exception ignored) {}
+                    recycleBitmaps(recyclableBitmaps);
+                    call.resolve(BarcodeMapper.toJS(decoded));
+                    return;
+                }
+
+                processImageCandidates(imageScanner, candidates, index + 1, recyclableBitmaps, call);
+            })
+            .addOnFailureListener((e) -> processImageCandidates(imageScanner, candidates, index + 1, recyclableBitmaps, call))
+            .addOnCanceledListener(() -> processImageCandidates(imageScanner, candidates, index + 1, recyclableBitmaps, call));
     }
 
     // ===== Permissions =====

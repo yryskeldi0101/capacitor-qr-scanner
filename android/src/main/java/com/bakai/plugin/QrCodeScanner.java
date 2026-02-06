@@ -24,6 +24,7 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
 import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -61,6 +62,14 @@ public class QrCodeScanner {
     private volatile long cooldownUntilMs = 0L;
     private static final long ANALYZE_INTERVAL_MS = 70L;
     private static final long SUCCESS_COOLDOWN_MS = 350L;
+
+    // adaptive zoom for difficult/blurred QRs
+    private volatile int consecutiveDecodeMisses = 0;
+    private volatile long lastAutoZoomAtMs = 0L;
+    private static final int AUTO_ZOOM_MISS_THRESHOLD = 8;
+    private static final long AUTO_ZOOM_INTERVAL_MS = 500L;
+    private static final float AUTO_ZOOM_STEP = 0.18f;
+    private static final float AUTO_ZOOM_SOFT_MAX = 3.0f;
 
     // zoom observer
     private LifecycleOwner lastOwner = null;
@@ -104,7 +113,7 @@ public class QrCodeScanner {
     public QrCodeScanner(Context context) {
         this.context = context.getApplicationContext();
 
-        BarcodeScannerOptions options = new BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build();
+        BarcodeScannerOptions options = new BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).enableAllPotentialBarcodes().build();
 
         scanner = BarcodeScanning.getClient(options);
 
@@ -180,6 +189,8 @@ public class QrCodeScanner {
                     processing = false;
                     lastAnalyzeAtMs = 0L;
                     cooldownUntilMs = 0L;
+                    consecutiveDecodeMisses = 0;
+                    lastAutoZoomAtMs = 0L;
 
                     analyzer = (imageProxy) -> {
                         try {
@@ -216,12 +227,22 @@ public class QrCodeScanner {
                             scanner
                                 .process(inputImage)
                                 .addOnSuccessListener((barcodes) -> {
-                                    if (barcodes != null && !barcodes.isEmpty()) {
+                                    List<Barcode> decoded = filterDecodedBarcodes(barcodes);
+                                    if (!decoded.isEmpty()) {
+                                        consecutiveDecodeMisses = 0;
                                         cooldownUntilMs = SystemClock.elapsedRealtime() + SUCCESS_COOLDOWN_MS;
-                                        callback.onBarcodes(barcodes);
+                                        callback.onBarcodes(decoded);
+                                        return;
                                     }
+
+                                    consecutiveDecodeMisses++;
+                                    maybeAutoZoom();
                                 })
-                                .addOnFailureListener((e) -> callback.onError(e != null ? String.valueOf(e.getMessage()) : "Unknown error"))
+                                .addOnFailureListener((e) -> {
+                                    consecutiveDecodeMisses++;
+                                    maybeAutoZoom();
+                                    callback.onError(e != null ? String.valueOf(e.getMessage()) : "Unknown error");
+                                })
                                 .addOnCompleteListener((t) -> {
                                     try {
                                         imageProxy.close();
@@ -349,6 +370,8 @@ public class QrCodeScanner {
 
             pendingZoomRatio = null;
             lastRequestedZoomRatio = null;
+            consecutiveDecodeMisses = 0;
+            lastAutoZoomAtMs = 0L;
 
             lastOwner = null;
             lastCallback = null;
@@ -371,6 +394,7 @@ public class QrCodeScanner {
     public void pause() {
         paused = true;
         processing = false;
+        consecutiveDecodeMisses = 0;
 
         final ImageAnalysis localAnalysis = analysis;
         if (localAnalysis != null && analyzerAttached) {
@@ -393,6 +417,8 @@ public class QrCodeScanner {
     /** RESUME: возвращаем анализатор и перезапускаем применение zoom */
     public void resume() {
         paused = false;
+        consecutiveDecodeMisses = 0;
+        lastAutoZoomAtMs = 0L;
 
         final ImageAnalysis localAnalysis = analysis;
         final ExecutorService localExecutor = cameraExecutor;
@@ -489,5 +515,55 @@ public class QrCodeScanner {
             zoomRetryStartMs = 0L;
             scheduleZoomRetry();
         }
+    }
+
+    private static List<Barcode> filterDecodedBarcodes(List<Barcode> barcodes) {
+        List<Barcode> decoded = new ArrayList<>();
+        if (barcodes == null || barcodes.isEmpty()) return decoded;
+
+        for (Barcode barcode : barcodes) {
+            if (barcode == null) continue;
+            if (!hasPayload(barcode)) continue;
+            decoded.add(barcode);
+        }
+        return decoded;
+    }
+
+    private static boolean hasPayload(Barcode barcode) {
+        if (barcode == null) return false;
+
+        String raw = barcode.getRawValue();
+        if (raw != null && !raw.trim().isEmpty()) return true;
+
+        String display = barcode.getDisplayValue();
+        return display != null && !display.trim().isEmpty();
+    }
+
+    private void maybeAutoZoom() {
+        if (lastRequestedZoomRatio != null) return; // user-controlled zoom has priority
+        if (consecutiveDecodeMisses < AUTO_ZOOM_MISS_THRESHOLD) return;
+        if (camera == null) return;
+
+        long now = SystemClock.elapsedRealtime();
+        if ((now - lastAutoZoomAtMs) < AUTO_ZOOM_INTERVAL_MS) return;
+
+        ZoomState zs;
+        try {
+            zs = camera.getCameraInfo().getZoomState().getValue();
+        } catch (Exception ignored) {
+            return;
+        }
+        if (zs == null) return;
+
+        float maxAllowed = Math.min(zs.getMaxZoomRatio(), AUTO_ZOOM_SOFT_MAX);
+        float current = zs.getZoomRatio();
+
+        if (current >= (maxAllowed - 0.01f)) return;
+
+        float target = Math.min(maxAllowed, current + AUTO_ZOOM_STEP);
+        try {
+            camera.getCameraControl().setZoomRatio(target);
+            lastAutoZoomAtMs = now;
+        } catch (Exception ignored) {}
     }
 }

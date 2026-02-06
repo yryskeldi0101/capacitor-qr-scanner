@@ -1,6 +1,7 @@
 import AVFoundation
 import Vision
 import UIKit
+import ImageIO
 
 final class QrCodeScanner: NSObject {
 
@@ -35,7 +36,13 @@ final class QrCodeScanner: NSObject {
     private var detectRequest: VNDetectBarcodesRequest?
     private var isProcessingFrame = false
     private var lastProcessTime = CFAbsoluteTimeGetCurrent()
-    private var minProcessInterval: CFTimeInterval = 1.0 / 12.0 // 12fps обработки
+    private var minProcessInterval: CFTimeInterval = 1.0 / 18.0 // faster reaction for blurred handheld scans
+
+    // fallback and adaptive zoom for difficult branded QR
+    private var consecutiveDecodeMisses = 0
+    private var lastEnhancedAttemptTime = CFAbsoluteTimeGetCurrent()
+    private var lastAutoZoomAt = CFAbsoluteTimeGetCurrent()
+    private var manualZoomLocked = false
 
     // =========================
     // DOUBLE BUFFER for freeze (STRICTLY last QR-detect)
@@ -78,6 +85,10 @@ final class QrCodeScanner: NSObject {
         // reset perf state
         isProcessingFrame = false
         lastProcessTime = CFAbsoluteTimeGetCurrent()
+        consecutiveDecodeMisses = 0
+        lastEnhancedAttemptTime = CFAbsoluteTimeGetCurrent()
+        lastAutoZoomAt = CFAbsoluteTimeGetCurrent()
+        manualZoomLocked = false
 
         // reset buffers
         detectedImages = [nil, nil]
@@ -88,31 +99,7 @@ final class QrCodeScanner: NSObject {
         // reset torch cached state
         torchEnabled = false
 
-        // init request once
-        let req = VNDetectBarcodesRequest { [weak self] req, err in
-            guard let self = self else { return }
-            self.isProcessingFrame = false
-
-            if let err = err {
-                self.onError?(err.localizedDescription)
-                return
-            }
-
-            let results = req.results as? [VNBarcodeObservation] ?? []
-
-            // ✅ Привязка кадра строго к детекту:
-            if !results.isEmpty, let img = self.lastFrameImage {
-                self.detectedIndex = 1 - self.detectedIndex
-                self.detectedImages[self.detectedIndex] = img
-                self.hasDetectedAtLeastOnce = true
-            }
-
-            self.onResult?(results)
-        }
-
-        // Если нужен только QR — можно ускорить:
-        // req.symbologies = [.QR]
-        detectRequest = req
+        detectRequest = createQrDetectRequest()
 
         let position: AVCaptureDevice.Position = (lens == "FRONT") ? .front : .back
         currentPosition = position
@@ -159,19 +146,7 @@ final class QrCodeScanner: NSObject {
                 return
             }
 
-            // ✅ FORCE TORCH OFF AT START (по умолчанию false)
-            if device.hasTorch {
-                do {
-                    try device.lockForConfiguration()
-                    device.torchMode = .off
-                    device.unlockForConfiguration()
-                    self.torchEnabled = false
-                } catch {
-                    self.torchEnabled = false
-                }
-            } else {
-                self.torchEnabled = false
-            }
+            self.configureDeviceForScan(device)
 
             // video output (Vision)
             let vOut = AVCaptureVideoDataOutput()
@@ -272,6 +247,7 @@ final class QrCodeScanner: NSObject {
 
             self.detectRequest = nil
             self.isProcessingFrame = false
+            self.consecutiveDecodeMisses = 0
 
             self.detectedImages = [nil, nil]
             self.lastFrameImage = nil
@@ -298,6 +274,7 @@ final class QrCodeScanner: NSObject {
         sessionQueue.async { [weak self] in
             self?.videoConnection?.isEnabled = false
             self?.isProcessingFrame = false
+            self?.consecutiveDecodeMisses = 0
         }
 
         // 2) Freeze: строго последний QR-детект, иначе fallback
@@ -330,6 +307,8 @@ final class QrCodeScanner: NSObject {
             self.videoConnection?.isEnabled = true
             self.isProcessingFrame = false
             self.lastProcessTime = CFAbsoluteTimeGetCurrent()
+            self.consecutiveDecodeMisses = 0
+            self.lastEnhancedAttemptTime = CFAbsoluteTimeGetCurrent()
         }
 
         DispatchQueue.main.async { [weak self] in
@@ -406,6 +385,7 @@ final class QrCodeScanner: NSObject {
                 try device.lockForConfiguration()
                 device.videoZoomFactor = clamped
                 device.unlockForConfiguration()
+                self.manualZoomLocked = true
             } catch {
                 DispatchQueue.main.async { [weak self] in self?.onError?("Zoom error") }
             }
@@ -426,6 +406,127 @@ final class QrCodeScanner: NSObject {
         // ✅ .up — иначе получишь +90° относительно previewLayer (portrait)
         return UIImage(cgImage: cg, scale: UIScreen.main.scale, orientation: .up)
     }
+
+    private func createQrDetectRequest() -> VNDetectBarcodesRequest {
+        let request = VNDetectBarcodesRequest()
+        request.symbologies = [.qr]
+
+        if #available(iOS 16.0, *) {
+            request.revision = VNDetectBarcodesRequestRevision3
+        }
+
+        return request
+    }
+
+    private func configureDeviceForScan(_ device: AVCaptureDevice) {
+        do {
+            try device.lockForConfiguration()
+
+            if device.isFocusModeSupported(.continuousAutoFocus) {
+                device.focusMode = .continuousAutoFocus
+            }
+            if device.isSmoothAutoFocusSupported {
+                device.isSmoothAutoFocusEnabled = true
+            }
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+            if device.isLowLightBoostSupported {
+                device.automaticallyEnablesLowLightBoostWhenAvailable = true
+            }
+            if device.hasTorch {
+                device.torchMode = .off
+            }
+
+            device.unlockForConfiguration()
+        } catch {}
+
+        torchEnabled = false
+    }
+
+    private func orientationForVision(from connection: AVCaptureConnection) -> CGImagePropertyOrientation {
+        let orientation = connection.videoOrientation
+        let isFront = (currentPosition == .front)
+
+        switch orientation {
+        case .portrait:
+            return isFront ? .leftMirrored : .right
+        case .portraitUpsideDown:
+            return isFront ? .rightMirrored : .left
+        case .landscapeLeft:
+            return isFront ? .downMirrored : .up
+        case .landscapeRight:
+            return isFront ? .upMirrored : .down
+        @unknown default:
+            return isFront ? .leftMirrored : .right
+        }
+    }
+
+    private func shouldRunEnhancedPass(now: CFAbsoluteTime) -> Bool {
+        guard consecutiveDecodeMisses >= 2 else { return false }
+        if (now - lastEnhancedAttemptTime) < 0.20 { return false }
+        lastEnhancedAttemptTime = now
+        return true
+    }
+
+    private func runEnhancedDetection(
+        from sampleBuffer: CMSampleBuffer,
+        orientation: CGImagePropertyOrientation
+    ) -> [VNBarcodeObservation] {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return [] }
+
+        var ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+
+        if let colorControls = CIFilter(name: "CIColorControls") {
+            colorControls.setValue(ciImage, forKey: kCIInputImageKey)
+            colorControls.setValue(1.45, forKey: kCIInputContrastKey)
+            colorControls.setValue(0.03, forKey: kCIInputBrightnessKey)
+            colorControls.setValue(0.0, forKey: kCIInputSaturationKey)
+            if let output = colorControls.outputImage {
+                ciImage = output
+            }
+        }
+
+        if let sharpen = CIFilter(name: "CISharpenLuminance") {
+            sharpen.setValue(ciImage, forKey: kCIInputImageKey)
+            sharpen.setValue(0.65, forKey: kCIInputSharpnessKey)
+            if let output = sharpen.outputImage {
+                ciImage = output
+            }
+        }
+
+        guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return [] }
+
+        let request = createQrDetectRequest()
+        let handler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
+
+        do {
+            try handler.perform([request])
+            return request.results as? [VNBarcodeObservation] ?? []
+        } catch {
+            return []
+        }
+    }
+
+    private func maybeAutoZoom(now: CFAbsoluteTime) {
+        guard !manualZoomLocked else { return }
+        guard consecutiveDecodeMisses >= 10 else { return }
+        guard (now - lastAutoZoomAt) >= 0.6 else { return }
+        guard let device = currentDevice else { return }
+        guard currentPosition == .back else { return }
+
+        let maxZoom = min(device.activeFormat.videoMaxZoomFactor, 3.0)
+        let current = device.videoZoomFactor
+        guard current < (maxZoom - 0.01) else { return }
+
+        let target = min(maxZoom, current + 0.18)
+        do {
+            try device.lockForConfiguration()
+            device.videoZoomFactor = target
+            device.unlockForConfiguration()
+            lastAutoZoomAt = now
+        } catch {}
+    }
 }
 
 // MARK: - Vision frames
@@ -445,18 +546,40 @@ extension QrCodeScanner: AVCaptureVideoDataOutputSampleBufferDelegate {
 
         isProcessingFrame = true
         lastProcessTime = now
+        defer { isProcessingFrame = false }
 
         // Кадр этого прогона — будет привязан к детекту
         if let img = makeUIImage(from: sampleBuffer) {
             lastFrameImage = img
         }
 
+        let orientation = orientationForVision(from: connection)
+        var results: [VNBarcodeObservation] = []
+
         do {
-            // previewLayer уже в portrait, поэтому Vision оставляем .up
-            try sequenceHandler.perform([request], on: sampleBuffer, orientation: .up)
+            try sequenceHandler.perform([request], on: sampleBuffer, orientation: orientation)
+            results = request.results as? [VNBarcodeObservation] ?? []
         } catch {
-            isProcessingFrame = false
             onError?(error.localizedDescription)
+            return
         }
+
+        if results.isEmpty && shouldRunEnhancedPass(now: now) {
+            results = runEnhancedDetection(from: sampleBuffer, orientation: orientation)
+        }
+
+        if !results.isEmpty {
+            consecutiveDecodeMisses = 0
+            if let img = lastFrameImage {
+                detectedIndex = 1 - detectedIndex
+                detectedImages[detectedIndex] = img
+                hasDetectedAtLeastOnce = true
+            }
+        } else {
+            consecutiveDecodeMisses += 1
+            maybeAutoZoom(now: now)
+        }
+
+        onResult?(results)
     }
 }
